@@ -36,12 +36,12 @@ if prompt := st.chat_input("What is up?"):
 
     initial_message_ids.append(user_message.id)
 
-    with st.chat_message("assistant"):
-        run = client.beta.threads.runs.create(
-            thread_id=st.session_state['thread'],
-            assistant_id=assistantId,
-            instructions="Please address the user as Jane Doe. The user has a premium account."
-            )
+
+    run = client.beta.threads.runs.create(
+        thread_id=st.session_state['thread'],
+        assistant_id=assistantId,
+        instructions="Please address the user as Jane Doe. The user has a premium account."
+        )
 
     with st.spinner('Please wait while the assistant processes your input...'):
         while run.status != "completed":
