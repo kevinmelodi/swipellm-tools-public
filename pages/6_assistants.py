@@ -31,6 +31,8 @@ if prompt := st.chat_input("What is up?"):
         role="user",
         content=prompt
     )
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
     initial_message_ids.append(user_message.id)
 
@@ -41,22 +43,21 @@ if prompt := st.chat_input("What is up?"):
             instructions="Please address the user as Jane Doe. The user has a premium account."
             )
 
-    with st.status("Starting work...", expanded=False):
+    with st.spinner('Please wait while the assistant processes your input...'):
         while run.status != "completed":
-            time.sleep(5)
+            time.sleep(5)  # Adjust sleep time if needed
             run = client.beta.threads.runs.retrieve(
                 thread_id=st.session_state['thread'], run_id=run.id
             )
 
-        # Fetch the new messages after the assistant's response
-        new_thread_messages = client.beta.threads.messages.list(st.session_state['thread'])
+    # Fetch the new messages after the assistant's response
+    new_thread_messages = client.beta.threads.messages.list(st.session_state['thread'])
 
-        # Determine the new messages by comparing IDs
-        new_message_ids = set(message.id for message in new_thread_messages.data) - set(initial_message_ids)
+    # Determine the new messages by comparing IDs
+    new_message_ids = set(message.id for message in new_thread_messages.data) - set(initial_message_ids)
 
-        # Display only new messages
-        for message in reversed(new_thread_messages.data):
-            if message.id in new_message_ids:
-                st_object = {"role": message.role, "content": message.content[0].text.value}
-                with st.chat_message(st_object["role"]):
-                    st.markdown(st_object["content"])
+    # Display only new messages
+    for message in reversed(new_thread_messages.data):
+        if message.id in new_message_ids:
+            with st.chat_message(message.role):
+                st.markdown(message.content[0].text.value)
