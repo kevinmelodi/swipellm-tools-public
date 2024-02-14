@@ -6,10 +6,6 @@ st.title("ChatGPT-like clone")
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 assistantId = 'asst_dzvy5mIYrwNScAeFUqnN9Llt'
 
-if 'initialized' not in st.session_state:
-    # Set the 'initialized' key to True to indicate that initialization is done
-    st.session_state['initialized'] = True
-
 
 if "thread" not in st.session_state:
     thread = client.beta.threads.create()
