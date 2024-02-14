@@ -42,11 +42,41 @@ def research_company(company_url):
 
 # Streamed response emulator
 def fake_stream(message):
-    for word in message.split():
-        yield word + " "
-        time.sleep(0.05)
-
-
+    i = 0
+    while i < len(message):
+        # If the current character is a special Markdown character, we might need to handle it differently
+        if message[i] in ['*', '_', '`', '#', '-', '+', '[', '!']:
+            # Look ahead to find the end of the Markdown formatting
+            if message[i] == '*' or message[i] == '_':  # Bold or italic
+                next_char = '*' if message[i] == '*' else '_'
+                end_format = message.find(next_char, i + 1)
+                if end_format != -1:
+                    # Output the formatted text at once
+                    yield message[i:end_format + 1]
+                    i = end_format
+            elif message[i] == '`':  # Inline code
+                end_format = message.find('`', i + 1)
+                if end_format != -1:
+                    yield message[i:end_format + 1]
+                    i = end_format
+            elif message[i] in ['#', '-', '+']:  # Headers or lists
+                # Find the end of the line
+                end_of_line = message.find('\n', i + 1)
+                if end_of_line != -1:
+                    yield message[i:end_of_line + 1]
+                    i = end_of_line
+            elif message[i] == '[' or message[i] == '!':  # Links or images
+                end_bracket = message.find(']', i + 1)
+                start_parenthesis = message.find('(', end_bracket + 1)
+                end_parenthesis = message.find(')', start_parenthesis + 1)
+                if end_bracket != -1 and start_parenthesis != -1 and end_parenthesis != -1:
+                    yield message[i:end_parenthesis + 1]
+                    i = end_parenthesis
+        else:
+            # Output character by character
+            yield message[i]
+            time.sleep(0.005)
+        i += 1
 
 
 if "thread" not in st.session_state:
@@ -87,18 +117,29 @@ if prompt := st.chat_input("What is up?"):
                 thread_id=st.session_state['thread'], run_id=run.id
             )
             if run.status == 'requires_action':
-                st.markdown('Message requires action')
+                st.markdown('Conducting external research, this may take up to a minute')
                 run_steps = client.beta.threads.runs.steps.list(thread_id=st.session_state['thread'],run_id=run.id)
                 for step in run_steps.data:
                     for tool_call in step.step_details.tool_calls:
                         if tool_call.type == 'function':
+                            toolCallId = tool_call.id
                             if tool_call.function.name == 'research_url':
                                 function_arguments = json.loads(tool_call.function.arguments)
                                 research_target_url = function_arguments.get('URL')
-                                reasearch_response = research_company(research_target_url)
-                                st.markdown(reasearch_response)
-                break
-
+                                research_response = research_company(research_target_url)
+                                research_content = json.loads(research_response.content)
+                                research_content_text = str(research_content["choices"][0]["message"]["content"])
+                                
+                                run = client.beta.threads.runs.submit_tool_outputs(
+                                        thread_id=st.session_state['thread'],
+                                        run_id=run.id,
+                                        tool_outputs=[
+                                            {
+                                            "tool_call_id": toolCallId,
+                                            "output": research_content_text
+                                            }
+                                        ]
+                                        )
 
     # Fetch the new messages after the assistant's response
     new_thread_messages = client.beta.threads.messages.list(st.session_state['thread'])
@@ -110,5 +151,6 @@ if prompt := st.chat_input("What is up?"):
     for message in reversed(new_thread_messages.data):
         if message.id in new_message_ids:
             with st.chat_message(message.role):
-                st.write_stream(fake_stream(message.content[0].text.value))
+                st.markdown(st.write_stream(fake_stream(message.content[0].text.value)))
+    
 
