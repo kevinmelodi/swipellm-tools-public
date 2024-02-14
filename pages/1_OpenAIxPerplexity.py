@@ -152,6 +152,6 @@ if prompt := st.chat_input("What should we research today?"):
     for message in reversed(new_thread_messages.data):
         if message.id in new_message_ids:
             with st.chat_message(message.role):
-                st.markdown(st.write_stream(fake_stream(message.content[0].text.value)))
+                st.write_stream(fake_stream(message.content[0].text.value))
     
 
