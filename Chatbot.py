@@ -8,7 +8,7 @@ import requests
 
 
 
-st.title("Marketing research assistant")
+st.title("Marketing research assistant w openai")
 st.caption("An OpenAI custom GPT with web browsing by Perplexity. Ask me to research a website 🔎")
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
