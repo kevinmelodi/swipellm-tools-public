@@ -46,12 +46,25 @@ if prompt := st.chat_input("What is up?"):
         instructions="Please address the user as Jane Doe. The user has a premium account."
         )
 
+    start_time = time.time()
+    timeout = 60  # Timeout in seconds
+
     with st.spinner('Please wait while the assistant processes your input...'):
-        while run.status != "completed":
-            time.sleep(.3)  # Adjust sleep time if needed
+        while True:
             run = client.beta.threads.runs.retrieve(
                 thread_id=st.session_state['thread'], run_id=run.id
             )
+            
+            # Check if the status is completed
+            if run.status == "completed":
+                break
+            
+            # Check if 60 seconds have passed
+            if time.time() - start_time > timeout:
+                st.warning('Process timed out. Continuing with the next steps.')
+                break
+            
+            time.sleep(.3)  # Adjust sleep time if needed
 
     # Fetch the new messages after the assistant's response
     new_thread_messages = client.beta.threads.messages.list(st.session_state['thread'])
