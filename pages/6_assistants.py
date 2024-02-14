@@ -25,8 +25,6 @@ if prompt := st.chat_input("What is up?"):
         role="user",
         content=prompt
     )
-    with st.chat_message("user"):
-        st.markdown(prompt)
 
     with st.chat_message("assistant"):
         run = client.beta.threads.runs.create(
