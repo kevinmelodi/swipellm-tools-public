@@ -6,6 +6,10 @@ import requests
 
 st.title("OpenAI Assistants API toy demo")
 
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+p_key = st.secrets["PERPLEXITY_API_KEY"]
+assistantId = 'asst_l5xzlCbeq77iRJ1sfmhVsejE'
+
 def research_company(company_url):
     template = f"Hey GPT! I’d like you to go to the following URL address ({company_url}) and research the company, its products, services, and About Us page."
 
@@ -27,7 +31,7 @@ def research_company(company_url):
     headers = {
         "accept": "application/json",
         "content-type": "application/json",
-        "authorization": f"Bearer {st.secrets["PERPLEXITY_API_KEY"]}"
+        "authorization": f"Bearer {p_key}"
     }
 
     # Make the POST request to the API
@@ -42,8 +46,7 @@ def fake_stream(message):
         yield word + " "
         time.sleep(0.05)
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-assistantId = 'asst_l5xzlCbeq77iRJ1sfmhVsejE'
+
 
 
 if "thread" not in st.session_state:
@@ -92,7 +95,7 @@ if prompt := st.chat_input("What is up?"):
                             if tool_call.function.name == 'research_url':
                                 function_arguments = json.loads(tool_call.function.arguments)
                                 research_target_url = function_arguments.get('URL')
-                                reasearch_response = research_target_url(research_company)
+                                reasearch_response = research_company(research_target_url)
                                 st.markdown(reasearch_response)
                 break
 
