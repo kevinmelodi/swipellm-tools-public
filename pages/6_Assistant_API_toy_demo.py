@@ -48,7 +48,7 @@ if prompt := st.chat_input("What is up?"):
 
     with st.spinner('Please wait while the assistant processes your input...'):
         while run.status != "completed":
-            time.sleep(.1)  # Adjust sleep time if needed
+            time.sleep(.3)  # Adjust sleep time if needed
             run = client.beta.threads.runs.retrieve(
                 thread_id=st.session_state['thread'], run_id=run.id
             )
