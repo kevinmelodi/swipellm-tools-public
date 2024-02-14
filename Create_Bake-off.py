@@ -5,6 +5,7 @@ import requests
 import streamlit as st
 import time
 
+st.set_page_config(page_title="Melodi | Create Bake-off", page_icon='melodi_transparent.png', initial_sidebar_state='expanded',)
 
 with st.sidebar:
     melodi_api_key = st.text_input("Melodi API Key", type="password")
@@ -30,7 +31,8 @@ def create_experiment(experiment_name, experiment_instructions, comparisons):
     return response
 st.image('melodi_transparent.png', width=70)
 st.title("Create a Melodi Bake-off Evaluation")
-st.caption("Ideal for copy/pasting directly from ChatGPT")
+st.caption("Ideal for copy/pasting directly from ChatGPT. Enter your Melodi API key in the sidebar to begin.")
+
 
 experiment_name = st.text_input(
         "Experiment name (reviewers won't see this)",
