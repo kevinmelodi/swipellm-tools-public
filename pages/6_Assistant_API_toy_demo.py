@@ -2,9 +2,39 @@ import json
 from openai import OpenAI
 import streamlit as st
 import time
-
+import requests
 
 st.title("OpenAI Assistants API toy demo")
+
+def research_company(company_url):
+    template = f"Hey GPT! I’d like you to go to the following URL address ({company_url}) and research the company, its products, services, and About Us page."
+
+    # Define the API URL
+    url = "https://api.perplexity.ai/chat/completions"
+
+    # Define the payload
+    payload = {
+        "model": "pplx-70b-online",
+        "messages": [
+            {
+                "role": "user",
+                "content": template
+            }
+        ]
+    }
+
+    # Define the headers
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "authorization": f"Bearer {st.secrets["PERPLEXITY_API_KEY"]}"
+    }
+
+    # Make the POST request to the API
+    response = requests.post(url, json=payload, headers=headers)
+
+    # Assuming you want to return the response from the function
+    return response
 
 # Streamed response emulator
 def fake_stream(message):
@@ -61,7 +91,9 @@ if prompt := st.chat_input("What is up?"):
                         if tool_call.type == 'function':
                             if tool_call.function.name == 'research_url':
                                 function_arguments = json.loads(tool_call.function.arguments)
-                                st.markdown(function_arguments.get('URL'))
+                                research_target_url = function_arguments.get('URL')
+                                reasearch_response = research_target_url(research_company)
+                                st.markdown(reasearch_response)
                 break
 
 
