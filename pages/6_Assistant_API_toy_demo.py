@@ -54,6 +54,7 @@ if prompt := st.chat_input("What is up?"):
             )
             if run.status == 'requires_action':
                 st.markdown('Message requires action')
+                break
 
 
     # Fetch the new messages after the assistant's response
