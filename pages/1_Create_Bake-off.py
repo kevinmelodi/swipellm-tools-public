@@ -29,8 +29,8 @@ def create_experiment(experiment_name, experiment_instructions, comparisons):
 
     return response
 
-st.title("Create a Melodi Experiment")
-st.caption("An LLM UI for easier data import and experiment creation")
+st.title("Create a Melodi Bake-off Evaluation")
+st.caption("Ideal for copy/pasting directly from ChatGPT")
 
 experiment_name = st.text_input(
         "Experiment name (reviewers won't see this)",
