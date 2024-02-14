@@ -11,7 +11,7 @@ def fake_stream(message):
         time.sleep(0.05)
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-assistantId = 'asst_dzvy5mIYrwNScAeFUqnN9Llt'
+assistantId = 'asst_l5xzlCbeq77iRJ1sfmhVsejE'
 
 
 if "thread" not in st.session_state:
@@ -52,6 +52,9 @@ if prompt := st.chat_input("What is up?"):
             run = client.beta.threads.runs.retrieve(
                 thread_id=st.session_state['thread'], run_id=run.id
             )
+            if run.status == 'requires_action':
+                st.markdown('Message requires action')
+
 
     # Fetch the new messages after the assistant's response
     new_thread_messages = client.beta.threads.messages.list(st.session_state['thread'])
