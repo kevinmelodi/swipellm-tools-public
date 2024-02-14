@@ -42,7 +42,7 @@ if prompt := st.chat_input("What is up?"):
 
     with st.status("Starting work...", expanded=False) as status_box:
         while run.status != "completed":
-            time.sleep(5)
+            time.sleep(.5)
             status_box.update(label=f"{run.status}...", state="running")
             run = client.beta.threads.runs.retrieve(
                 thread_id=st.session_state['thread'], run_id=run.id
