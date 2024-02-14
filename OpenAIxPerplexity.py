@@ -4,6 +4,10 @@ import streamlit as st
 import time
 import requests
 
+
+
+
+
 st.title("Marketing research assistant")
 st.caption("An OpenAI custom GPT with web browsing by Perplexity. Ask me to research a website 🔎")
 
