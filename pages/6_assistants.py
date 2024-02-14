@@ -35,7 +35,7 @@ if prompt := st.chat_input("What is up?"):
 
     thread_messages = client.beta.threads.messages.list(st.session_state['thread'])
 
-    for message in thread_messages.data:
+    for message in reversed(thread_messages.data):
         st_object = {}
         st_object["role"] = message.role
         for text in message.content:
