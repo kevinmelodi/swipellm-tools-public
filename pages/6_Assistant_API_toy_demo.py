@@ -4,7 +4,8 @@ import streamlit as st
 import time
 import requests
 
-st.title("OpenAI Assistants API toy demo")
+st.title("Marketing research assistant")
+st.caption("An OpenAI custom GPT with web browsing by Perplexity. Ask me to research a website 🔎")
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 p_key = st.secrets["PERPLEXITY_API_KEY"]
@@ -93,7 +94,7 @@ for message in reversed(thread_messages.data):
         st.markdown(message.content[0].text.value)
 
 
-if prompt := st.chat_input("What is up?"):
+if prompt := st.chat_input("What should we research today?"):
     user_message = client.beta.threads.messages.create(
         thread_id=st.session_state['thread'],
         role="user",
