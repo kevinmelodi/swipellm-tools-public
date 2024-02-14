@@ -28,7 +28,7 @@ def create_experiment(experiment_name, experiment_instructions, comparisons):
     response = requests.post(url, headers=headers, data=json.dumps(data))
 
     return response
-
+st.image('melodi_transparent.png', width=70)
 st.title("Create a Melodi Bake-off Evaluation")
 st.caption("Ideal for copy/pasting directly from ChatGPT")
 
