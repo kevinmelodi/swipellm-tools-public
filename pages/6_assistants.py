@@ -18,12 +18,9 @@ if "thread" not in st.session_state:
     thread = client.beta.threads.create()
     threadId = str(thread.id)
     st.session_state['thread'] = threadId
-    st.session_state['thread']
-
 
 
 thread_messages = client.beta.threads.messages.list(st.session_state['thread'])
-
 initial_message_ids = [message.id for message in thread_messages.data]
 
 for message in reversed(thread_messages.data):
