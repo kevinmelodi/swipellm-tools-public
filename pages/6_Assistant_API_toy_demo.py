@@ -43,7 +43,6 @@ if prompt := st.chat_input("What is up?"):
     run = client.beta.threads.runs.create(
         thread_id=st.session_state['thread'],
         assistant_id=assistantId,
-        instructions="Please address the user as Jane Doe. The user has a premium account."
         )
 
     with st.spinner('Please wait while the assistant processes your input...'):
