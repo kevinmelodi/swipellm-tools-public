@@ -58,9 +58,9 @@ if prompt := st.chat_input("What is up?"):
                 run_steps = client.beta.threads.runs.steps.list(thread_id=st.session_state['thread'],run_id=run.id)
                 for step in run_steps.data:
                     for tool_call in step.step_details.tool_calls:
-                        if tool_call['type'] == 'function':
-                            if tool_call['function']['name'] == 'research_url':
-                                function_arguments = json.loads(tool_call['function']['arguments'])
+                        if tool_call.type == 'function':
+                            if tool_call.function.name == 'research_url':
+                                function_arguments = json.loads(tool_call.function.arguments)
                                 st.markdown(function_arguments.get('URL'))
                 break
 
