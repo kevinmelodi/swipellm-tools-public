@@ -80,7 +80,7 @@ config = {
 
 samples = st.data_editor(df, column_config = config, num_rows='dynamic')
 
-if len(samples.index) > 0:
+if len(samples.index) > -1:
     st.session_state.disabled = True
     st.session_state.help = "Prompt names can't be updated when data is present in the table."
 
