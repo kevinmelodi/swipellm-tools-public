@@ -83,16 +83,12 @@ with tab1:
     }
 
 
-    
-
-
     samples = st.data_editor(df, column_config = config, num_rows='dynamic')
 
 
     if len(samples.index) > 0:
         st.session_state.disabled = True
         st.session_state.help = "Prompt names can't be updated when data is present in the table."
-
 
 
 with tab2:
@@ -123,6 +119,7 @@ if st.button('Create Experiment'):
         
         st.write(f"Feedback URL: {feedback_url}")
         st.write(f"Results URL: {results_url}")
+
 
     else:
         response_content = json.loads(melodi_response.content)
