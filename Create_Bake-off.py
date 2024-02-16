@@ -46,7 +46,7 @@ if 'disabled' not in st.session_state:
     st.session_state['disabled'] = False
 
 tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
-st.session_state
+
 with tab1:
     if 'disabled' not in st.session_state:
         st.session_state['disabled'] = False
