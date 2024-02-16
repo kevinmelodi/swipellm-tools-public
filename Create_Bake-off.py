@@ -42,8 +42,11 @@ experiment_instructions = st.text_input(
         "Instructions for reviewers",
     )
 
-tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
+if 'disabled' not in st.session_state:
+    st.session_state['disabled'] = False
 
+tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
+st.session_state
 with tab1:
     if 'disabled' not in st.session_state:
         st.session_state['disabled'] = False
@@ -84,12 +87,12 @@ with tab1:
 
 
     samples = st.data_editor(df, column_config = config, num_rows='dynamic')
-    samples
 
 
-    if len(samples.index) > -1:
+    if len(samples.index) > 0:
         st.session_state.disabled = True
         st.session_state.help = "Prompt names can't be updated when data is present in the table."
+
 
 
 with tab2:
@@ -97,10 +100,10 @@ with tab2:
     if uploaded_file is not None:
         st.session_state['file'] = True
         file = pd.read_csv(uploaded_file,header=0)
-        samples = file.iloc[:,0:2].style.set_properties(**{'background-color': '#f7fafc',
-                           })
+        samples = file.iloc[:,0:2]
         prompt_1, prompt_2 = samples.columns.tolist()
-        st.dataframe(samples,hide_index=True)
+        styled_df = samples.style.set_properties(**{'background-color': '#f7fafc',})
+        st.dataframe(styled_df,hide_index=True)
 
 if st.button('Create Experiment'):
     comparisons = []
