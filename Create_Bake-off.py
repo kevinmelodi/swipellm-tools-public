@@ -80,7 +80,13 @@ with tab1:
     }
 
 
+    
+
+
     samples = st.data_editor(df, column_config = config, num_rows='dynamic')
+    samples
+
+
     if len(samples.index) > -1:
         st.session_state.disabled = True
         st.session_state.help = "Prompt names can't be updated when data is present in the table."
@@ -91,7 +97,8 @@ with tab2:
     if uploaded_file is not None:
         st.session_state['file'] = True
         file = pd.read_csv(uploaded_file,header=0)
-        samples = file.iloc[:,0:2]
+        samples = file.iloc[:,0:2].style.set_properties(**{'background-color': '#f7fafc',
+                           })
         prompt_1, prompt_2 = samples.columns.tolist()
         st.dataframe(samples,hide_index=True)
 
