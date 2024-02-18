@@ -117,11 +117,18 @@ if st.button('Create Experiment'):
         feedback_url = res.get('feedbackUrl')
         results_url = res.get('resultsUrl')
         
-        st.write(f"Feedback URL: {feedback_url}")
-        st.write(f"Results URL: {results_url}")
+        col_app, col_results = st.columns(2)
+        with col_app:
+            st.link_button("Preview and Share Evaluation",f"{feedback_url}", type="primary", use_container_width=True)
+
+        with col_results:
+            st.link_button("View Results Dashboard", f"{results_url}", type="primary", use_container_width=True)
 
 
     else:
         response_content = json.loads(melodi_response.content)
-        st.write(f"Failed to create experiment. {response_content}")
+        try:
+            st.write(f"Failed to create experiment: {response_content['error']}")
+        except:
+            st.write(f"Failed to create experiment: {response_content}")
 
