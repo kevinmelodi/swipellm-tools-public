@@ -70,7 +70,7 @@ col_radio, col_images = st.columns(2)
 
 
 with col_radio: 
-    st.session_state['eval_type'] = st.radio("**Evaluation Type**", ['Bake-off','Binary'], captions=['A/B test responses from two models', 'Pass/fail assessment of responses from one model'])
+    st.session_state['eval_type'] = st.radio("**Evaluation Type**", ['Bake-off','Binary'], captions=['A/B test responses from two models', 'Pass/fail assess responses from one model'])
 
 with col_images:
 
