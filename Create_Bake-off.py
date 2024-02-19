@@ -75,9 +75,9 @@ with col_radio:
 with col_images:
 
     if st.session_state['eval_type'] == 'Bake-off':
-        st.image('/workspaces/swipellm-tools-public/images/bakeoff.png')
+        st.image('images/bakeoff.png')
     else:
-        st.image('/workspaces/swipellm-tools-public/images/binary.png')
+        st.image('images/binary.png')
 
 tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
 
