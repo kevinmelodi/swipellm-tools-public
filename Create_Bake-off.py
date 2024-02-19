@@ -51,8 +51,8 @@ def create_experiment_binary(experiment_name, experiment_instructions, samples):
     return response
 
 st.image('melodi_transparent.png', width=70)
-st.title("Create a Melodi Bake-off Evaluation")
-st.caption("Ideal for copy/pasting directly from ChatGPT. Enter your Melodi API key in the sidebar to begin.")
+st.title("Create a Melodi Evaluation")
+st.caption("Enter your Melodi API key in the sidebar to begin. Ideal for copy/pasting directly from ChatGPT or CSV upload. To create experiments via API, [view here](https://melodi.notion.site/Melodi-Experiments-API-08b6d362277d49e9aa167c75bce153a0)")
 
 
 experiment_name = st.text_input(
@@ -121,14 +121,23 @@ with tab1:
 
 
 with tab2:
-    uploaded_file = st.file_uploader(label='A header row must be provided in the file for Prompt Version. Column 1 should contain responses generated from Prompt 1. Column 2 should contain resposnes generated from Prompt 2. ', type=['csv'])
-    if uploaded_file is not None:
-        st.session_state['file'] = True
-        file = pd.read_csv(uploaded_file,header=0)
-        samples = file.iloc[:,0:2]
-        prompt_1, prompt_2 = samples.columns.tolist()
-        styled_df = samples.style.set_properties(**{'background-color': '#f7fafc',})
-        st.dataframe(styled_df,hide_index=True)
+    if st.session_state['eval_type'] == 'Bake-off':
+        uploaded_file = st.file_uploader(label='For **bake-off evaluations** a header row must be provided to label the models (such as "New prompt" and "Old prompt"). Column 1 should contain responses generated from Prompt 1. Column 2 should contain resposnes generated from Prompt 2. ', type=['csv'])
+        if uploaded_file is not None:
+            st.session_state['file'] = True
+            file = pd.read_csv(uploaded_file,header=0)
+            samples = file.iloc[:,0:2]
+            prompt_1, prompt_2 = samples.columns.tolist()
+            styled_df = samples.style.set_properties(**{'background-color': '#f7fafc',})
+            st.dataframe(styled_df,hide_index=True)
+    else:
+        uploaded_file = st.file_uploader(label="For **binary evaluations**, a header row is required, but the header value is not used to create the evaluation. The file should be one column: a list of example LLM responses from one prompt/model.", type=['csv'])
+        if uploaded_file is not None:
+            st.session_state['file'] = True
+            file = pd.read_csv(uploaded_file,header=0)
+            samples = file.iloc[:,0:1]
+            styled_df = samples.style.set_properties(**{'background-color': '#f7fafc',})
+            st.dataframe(styled_df,hide_index=True)
 
 if st.button('Create Experiment'):
     if st.session_state['eval_type'] == 'Bake-off':
@@ -144,8 +153,8 @@ if st.button('Create Experiment'):
         melodi_response = create_experiment(experiment_name, experiment_instructions, comparisons)
     else:
         binary_samples = []
-        for index, sample in samples.iterrows():
-            binary_samples.append({"response": sample["Responses"]})
+        for index, row in samples.iterrows():
+            binary_samples.append({"response": row.iloc[0]})
         melodi_response = create_experiment_binary(experiment_name, experiment_instructions, binary_samples)
         
 
