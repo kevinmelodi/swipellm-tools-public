@@ -128,16 +128,14 @@ with tab2:
             file = pd.read_csv(uploaded_file,header=0)
             samples = file.iloc[:,0:2]
             prompt_1, prompt_2 = samples.columns.tolist()
-            styled_df = samples.style.set_properties(**{'background-color': '#f7fafc',})
-            st.dataframe(styled_df,hide_index=True)
+            st.dataframe(samples, hide_index=True)
     else:
         uploaded_file = st.file_uploader(label="For **binary evaluations**, a header row is required, but the header value is not used to create the evaluation. The file should be one column: a list of example LLM responses from one prompt/model.", type=['csv'])
         if uploaded_file is not None:
             st.session_state['file'] = True
             file = pd.read_csv(uploaded_file,header=0)
             samples = file.iloc[:,0:1]
-            styled_df = samples.style.set_properties(**{'background-color': '#f7fafc',})
-            st.dataframe(styled_df,hide_index=True)
+            st.dataframe(samples, hide_index=True)
 
 if st.button('Create Experiment'):
     if st.session_state['eval_type'] == 'Bake-off':
