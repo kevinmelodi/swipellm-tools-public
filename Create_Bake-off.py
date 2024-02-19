@@ -66,7 +66,7 @@ experiment_instructions = st.text_input(
 if 'disabled' not in st.session_state:
     st.session_state['disabled'] = False
 
-st.session_state['eval_type'] = st.radio("**Evaluation type**", ['Bake-off','Binary'], captions=['Compare responses from two models', 'Assess a single response as pass or fail'])
+st.session_state['eval_type'] = st.radio("**Evaluation type**", ['Bake-off','Binary'], captions=['A/B test responses from two models', 'Assess a single response as pass or fail'])
 
 tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
 
@@ -80,7 +80,7 @@ with tab1:
     if st.session_state['eval_type'] == 'Bake-off':
         with col1:
             prompt_1 = st.text_input(
-                "Model or Prompt Name",
+                "Model or Prompt Name (A)",
                 key="placeholder",
                 value="Original Prompt",
                 disabled=st.session_state.disabled,
@@ -89,7 +89,7 @@ with tab1:
 
         with col2:
             prompt_2 = st.text_input(
-                "Model or Prompt Name (Comparison)",
+                "Model or Prompt Name (B)",
                 value="New Prompt",
                 disabled=st.session_state.disabled,
                 help="Names can't be updated if data is present in the table."
