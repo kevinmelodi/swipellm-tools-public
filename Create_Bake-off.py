@@ -56,7 +56,7 @@ st.caption("Enter your Melodi API key in the sidebar to begin. Ideal for copy/pa
 
 
 experiment_name = st.text_input(
-        "**Experiment name** (reviewers won't see this)",
+        "**Experiment name** *(reviewers won't see this)*",
     )
 
 experiment_instructions = st.text_input(
