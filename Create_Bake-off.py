@@ -66,7 +66,7 @@ experiment_instructions = st.text_input(
 if 'disabled' not in st.session_state:
     st.session_state['disabled'] = False
 
-st.session_state['eval_type'] = st.radio("**Evaluation type**", ['Bake-off','Binary'], captions=['A/B test responses from two models', 'Assess a single response as pass or fail'])
+st.session_state['eval_type'] = st.radio("**Evaluation type**", ['Bake-off','Binary'], captions=['A/B test responses from two models', 'Pass/fail assessment of responses from one model'])
 
 tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
 
