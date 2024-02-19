@@ -79,6 +79,8 @@ with col_images:
     else:
         st.image('images/binary.png')
 
+
+st.subheader('Import data')
 tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
 
 with tab1:
