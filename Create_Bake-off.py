@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 import time
 
-st.set_page_config(page_title="Melodi | Create Bake-off", page_icon='melodi_transparent.png', initial_sidebar_state='expanded',)
+st.set_page_config(page_title="Melodi | Create Evaluation", page_icon='melodi_transparent.png', initial_sidebar_state='expanded',)
 
 with st.sidebar:
     melodi_api_key = st.text_input("Melodi API Key", type="password")
@@ -51,7 +51,7 @@ def create_experiment_binary(experiment_name, experiment_instructions, samples):
     return response
 
 st.image('melodi_transparent.png', width=70)
-st.title("Create a Melodi Evaluation")
+st.title("Create Melodi Evaluation")
 st.caption("Enter your Melodi API key in the sidebar to begin. Ideal for copy/pasting directly from ChatGPT or for CSV upload of LLM responses. To create experiments via API, [see instructions here](https://melodi.notion.site/Melodi-Experiments-API-08b6d362277d49e9aa167c75bce153a0)")
 
 
