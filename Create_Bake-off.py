@@ -66,7 +66,18 @@ experiment_instructions = st.text_input(
 if 'disabled' not in st.session_state:
     st.session_state['disabled'] = False
 
-st.session_state['eval_type'] = st.radio("**Evaluation type**", ['Bake-off','Binary'], captions=['A/B test responses from two models', 'Pass/fail assessment of responses from one model'])
+col_radio, col_images = st.columns(2)
+
+
+with col_radio: 
+    st.session_state['eval_type'] = st.radio("**Evaluation Type**", ['Bake-off','Binary'], captions=['A/B test responses from two models', 'Pass/fail assessment of responses from one model'])
+
+with col_images:
+
+    if st.session_state['eval_type'] == 'Bake-off':
+        st.image('/workspaces/swipellm-tools-public/images/bakeoff.png')
+    else:
+        st.image('/workspaces/swipellm-tools-public/images/binary.png')
 
 tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
 
