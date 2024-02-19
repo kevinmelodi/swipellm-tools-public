@@ -52,7 +52,7 @@ def create_experiment_binary(experiment_name, experiment_instructions, samples):
 
 st.image('melodi_transparent.png', width=70)
 st.title("Create a Melodi Evaluation")
-st.caption("Enter your Melodi API key in the sidebar to begin. Ideal for copy/pasting directly from ChatGPT or CSV upload. To create experiments via API, [view here](https://melodi.notion.site/Melodi-Experiments-API-08b6d362277d49e9aa167c75bce153a0)")
+st.caption("Enter your Melodi API key in the sidebar to begin. Ideal for copy/pasting directly from ChatGPT or for CSV upload of LLM responses. To create experiments via API, [see instructions here](https://melodi.notion.site/Melodi-Experiments-API-08b6d362277d49e9aa167c75bce153a0)")
 
 
 experiment_name = st.text_input(
