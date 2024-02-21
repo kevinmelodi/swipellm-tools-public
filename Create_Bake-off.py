@@ -10,40 +10,33 @@ st.set_page_config(page_title="Melodi | Create Evaluation", page_icon='melodi_tr
 with st.sidebar:
     melodi_api_key = st.text_input("Melodi API Key", type="password")
 
-def create_experiment(experiment_name, experiment_instructions, comparisons):
-    api_key = melodi_api_key
+def create_experiment(experiment_name, experiment_instructions, items, experiment_type='Bake-off', project=None, binary_version=None):
+    api_key = melodi_api_key  # Make sure to replace this with your actual API key
     base_url = "https://app.melodi.fyi/api/external/experiments?apiKey="
     url = base_url + api_key
     headers = {"Content-Type": "application/json"}
 
-    # Data payload for the POST request
+    # Base data structure
     data = {
         "experiment": {
             "name": experiment_name,
             "instructions": experiment_instructions
-        },
-        "comparisons": comparisons
+        }
     }
 
-    # Make the POST request
-    response = requests.post(url, headers=headers, data=json.dumps(data))
+    # Add 'project' to the experiment data if provided
+    if project is not None:
+        data["experiment"]["project"] = project
 
-    return response
-
-def create_experiment_binary(experiment_name, experiment_instructions, samples):
-    api_key = melodi_api_key
-    base_url = "https://app.melodi.fyi/api/external/experiments?apiKey="
-    url = base_url + api_key
-    headers = {"Content-Type": "application/json"}
-
-    # Data payload for the POST request
-    data = {
-        "experiment": {
-            "name": experiment_name,
-            "instructions": experiment_instructions
-        },
-        "samples": samples
-    }
+    # Adjust data structure based on experiment type
+    if experiment_type == 'Bake-off':
+        data["comparisons"] = items
+    elif experiment_type == 'Binary':
+        data["samples"] = items
+        if project is not None and binary_version is not None:
+            data["experiment"]["version"] = binary_version
+    else:
+        raise ValueError("Invalid experiment type. Choose 'Bake-off' or 'Binary'.")
 
     # Make the POST request
     response = requests.post(url, headers=headers, data=json.dumps(data))
@@ -55,13 +48,25 @@ st.title("Create Melodi Evaluation")
 st.caption("Enter your Melodi API key in the sidebar to begin. Copy and paste results directly from ChatGPT or use a CSV for batch import. To learn about creating experiments via API, [read the API docs.](https://melodi.notion.site/Melodi-Experiments-API-08b6d362277d49e9aa167c75bce153a0)")
 
 
-experiment_name = st.text_input(
-        "**Experiment name** *(reviewers won't see this)*",
+col_name, col_project = st.columns(2)
+
+with col_name:
+    experiment_name = st.text_input(
+        "**Experiment name** *(Reviewers won't see this)*",
     )
+
+with col_project:
+    project = st.text_input(
+            "**Project** *Optional*", help = "Projects are like folders for your experiments. They should group experiments related to the same model, task, or product feature."
+        )
+
+
 
 experiment_instructions = st.text_input(
         "**Instructions for reviewers**",
     )
+
+
 
 if 'disabled' not in st.session_state:
     st.session_state['disabled'] = False
@@ -80,8 +85,14 @@ with col_images:
         st.image('images/binary.png')
 
 
+
 st.subheader('Import data')
 tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
+
+if st.session_state['eval_type'] == 'Bake-off':
+    prompt_a_label = 'Model or Prompt Version Name (A)'
+else:
+    prompt_a_label = 'Model or Prompt Version Name'
 
 with tab1:
 
@@ -90,25 +101,25 @@ with tab1:
     if 'help' not in st.session_state:
         st.session_state.help = "Reviewers won't see this"
 
-    if st.session_state['eval_type'] == 'Bake-off':
-        with col1:
-            prompt_1 = st.text_input(
-                "Model or Prompt Name (A)",
-                key="placeholder",
-                value="Original Prompt",
-                disabled=st.session_state.disabled,
-                help="Names can't be updated if data is present in the table."
-            )
 
-        with col2:
+    with col1:
+        prompt_1 = st.text_input(
+            prompt_a_label,
+            value="Original Prompt",
+            #disabled=st.session_state.disabled,
+            help="Names can't be updated if data is present in the table."
+        )
+
+    with col2:
+        if st.session_state['eval_type'] == 'Bake-off':
             prompt_2 = st.text_input(
-                "Model or Prompt Name (B)",
+                'Model or Prompt Version Name (B)',
                 value="New Prompt",
                 disabled=st.session_state.disabled,
                 help="Names can't be updated if data is present in the table."
             )
-    else:
-        pass
+        else:
+            pass
 
 
     if st.session_state['eval_type'] == 'Bake-off':
@@ -122,7 +133,7 @@ with tab1:
         df = pd.DataFrame(columns=["Responses"])
         
         config = {
-            "Responses" : st.column_config.TextColumn(f"Generated content examples", width='large', required=True),
+            "Responses" : st.column_config.TextColumn(f"Generated by {prompt_1}", width='large', required=True),
         }
 
     samples = st.data_editor(df, column_config = config, num_rows='dynamic',hide_index=True)
@@ -148,26 +159,34 @@ with tab2:
             st.session_state['file'] = True
             file = pd.read_csv(uploaded_file,header=0)
             samples = file.iloc[:,0:1]
+            prompt_1 = file.columns[0]
             st.dataframe(samples, hide_index=True)
 
 if st.button('Create Experiment'):
     if st.session_state['eval_type'] == 'Bake-off':
         comparisons = []
-        for index, sample in samples.iterrows(): # Loop through rows with iterrows()
-            
+        promptLabel = 'promptLabel'
+        if project:
+            promptLabel = 'version'
+        else:
+            project = None
+        for index, sample in samples.iterrows(): # Loop through rows with iterrows() 
             comparisons.append({"samples":[
-                {"response": sample[prompt_1],"promptLabel": prompt_1}, 
-                {"response": sample[prompt_2], "promptLabel": prompt_2} 
+                {"response": sample[prompt_1], promptLabel: prompt_1}, 
+                {"response": sample[prompt_2], promptLabel: prompt_2} 
             ]})
-        
-        
-        melodi_response = create_experiment(experiment_name, experiment_instructions, comparisons)
+        melodi_response = create_experiment(experiment_name, experiment_instructions, items=comparisons, experiment_type='Bake-off', project=project)
+    
     else:
         binary_samples = []
         for index, row in samples.iterrows():
             binary_samples.append({"response": row.iloc[0]})
-        melodi_response = create_experiment_binary(experiment_name, experiment_instructions, binary_samples)
-        
+        if project:
+            binary_version = prompt_1
+        else:
+            project = None
+            binary_version = None
+        melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version)
 
     if melodi_response.status_code == 200:
         res = melodi_response.json()
