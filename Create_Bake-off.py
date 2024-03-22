@@ -147,11 +147,17 @@ with tab1:
 with tab2:
     if st.session_state['eval_type'] == 'Bake-off':
         uploaded_file = st.file_uploader(label='For **bake-off evaluations** a header row must be provided to label the models (such as "New prompt" and "Old prompt"). Column 1 should contain responses generated from Prompt 1. Column 2 should contain resposnes generated from Prompt 2. ', type=['csv'])
+        num_columns = len(file.columns)
         if uploaded_file is not None:
             st.session_state['file'] = True
             file = pd.read_csv(uploaded_file,header=0)
-            samples = file.iloc[:,0:2]
-            prompt_1, prompt_2 = samples.columns.tolist()
+            num_columns = len(file.columns)
+            if num_columns == 2:
+                samples = file.iloc[:,0:2]
+                prompt_1, prompt_2 = samples.columns.tolist()
+            elif num_columns == 3:
+                samples = file.iloc[:, 0:3]
+                message, prompt_1, prompt_2 = samples.columns.tolist()
             st.dataframe(samples, hide_index=True)
     else:
         uploaded_file = st.file_uploader(label="For **binary evaluations**, a header row is required, but the header value is not used to create the evaluation. The file should be one column: a list of example LLM responses from one prompt/model.", type=['csv'])
@@ -170,11 +176,18 @@ if st.button('Create Experiment'):
             promptLabel = 'version'
         else:
             project = None
-        for index, sample in samples.iterrows(): # Loop through rows with iterrows() 
-            comparisons.append({"samples":[
-                {"response": sample[prompt_1], promptLabel: prompt_1}, 
-                {"response": sample[prompt_2], promptLabel: prompt_2} 
-            ]})
+        if num_columns == 2:
+            for index, sample in samples.iterrows(): # Loop through rows with iterrows() 
+                comparisons.append({"samples":[
+                    {"response": sample[prompt_1], promptLabel: prompt_1}, 
+                    {"response": sample[prompt_2], promptLabel: prompt_2} 
+                ]})
+        elif num_columns == 3:
+            for index, sample in samples.iterrows():
+                comparisons.append({"samples": [
+                    {"response": sample[prompt_1], promptLabel: prompt_1, "message": sample[message]},
+                    {"response": sample[prompt_2], promptLabel: prompt_2, "message": sample[message]}
+                ]})
         melodi_response = create_experiment(experiment_name, experiment_instructions, items=comparisons, experiment_type='Bake-off', project=project)
     
     else:
