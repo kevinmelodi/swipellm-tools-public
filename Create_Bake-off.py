@@ -10,9 +10,11 @@ st.set_page_config(page_title="Melodi | Create Evaluation", page_icon='melodi_tr
 with st.sidebar:
     melodi_api_key = st.text_input("Melodi API Key", type="password")
 
-def create_experiment(experiment_name, experiment_instructions, items, experiment_type='Bake-off', project=None, binary_version=None):
+def create_experiment(experiment_name, experiment_instructions, items, experiment_type='Bake-off', project=None, binary_version=None, gpt_template=False):
     api_key = melodi_api_key  # Make sure to replace this with your actual API key
     base_url = "https://app.melodi.fyi/api/external/experiments?apiKey="
+    if gpt_template == True:
+        base_url = "https://app.melodi.fyi/api/external/experiments/templates/conversational?apiKey="
     url = base_url + api_key
     headers = {"Content-Type": "application/json"}
 
@@ -71,6 +73,9 @@ experiment_instructions = st.text_input(
 if 'disabled' not in st.session_state:
     st.session_state['disabled'] = False
 
+if 'GPT data' not in st.session_state:
+    st.session_state['GPT data'] = False
+
 col_radio, col_images = st.columns(2)
 
 
@@ -86,8 +91,8 @@ with col_images:
 
 
 
-st.subheader('Import data')
-tab1, tab2 = st.tabs(["Manual Entry", "CSV Upload"])
+st.header('Import data')
+tab1, tab2, tab3 = st.tabs(["Manual Entry", "CSV Upload","GPT Conversation (JSONL)"])
 
 if st.session_state['eval_type'] == 'Bake-off':
     prompt_a_label = 'Model or Prompt Version Name (A)'
@@ -167,52 +172,156 @@ with tab2:
             prompt_1 = file.columns[0]
             st.dataframe(samples, hide_index=True)
 
-if st.button('Create Experiment'):
+with tab3:
+    st.write("Data should follow the OpenAI fine tuning dataset structure. For details, [read the OpenAI fine tune docs](https://platform.openai.com/docs/guides/fine-tuning/preparing-your-dataset)")
     if st.session_state['eval_type'] == 'Bake-off':
-        comparisons = []
-        promptLabel = 'promptLabel'
-        if project:
-            promptLabel = 'version'
-        else:
-            project = None
-        if num_columns == 2:
-            for index, sample in samples.iterrows(): # Loop through rows with iterrows() 
-                comparisons.append({"samples":[
-                    {"response": sample[prompt_1], promptLabel: prompt_1}, 
-                    {"response": sample[prompt_2], promptLabel: prompt_2} 
-                ]})
-        elif num_columns == 3:
-            for index, sample in samples.iterrows():
-                # Create a dictionary for each sample, handling missing values by using None, which converts to null in JSON
-                sample_1_response = sample.get(prompt_1) if pd.notnull(sample.get(prompt_1)) else None
-                sample_2_response = sample.get(prompt_2) if pd.notnull(sample.get(prompt_2)) else None
-                sample_message = sample[message] if pd.notnull(sample[message]) else None
+            col_jsonl_a, col_jsonl_b = st.columns(2)
+            with col_jsonl_a:
+                prompt_1 = st.text_input(
+                prompt_a_label,
+                value="Original Prompt",
+                #disabled=st.session_state.disabled,
+                help="Names can't be updated if data is present in the table.",
+                key = "GPT prompt 1")
+                
+                uploaded_file_A = st.file_uploader(label='Conversation Samples (A)', type=['jsonl'], label_visibility="hidden")
+                if uploaded_file_A is not None:
+                    st.session_state['file'] = True
+                    samples_A = []
+                    for line in uploaded_file_A.read().decode('utf-8').splitlines():
+                        samples_A.append(json.loads(line))
+                    st.session_state['GPT data'] = True
 
-                # Add the samples to the comparisons list
-                comparisons.append({
-                    "samples": [
-                        {"response": sample_1_response, promptLabel: prompt_1, "message": sample_message},
-                        {"response": sample_2_response, promptLabel: prompt_2, "message": sample_message}
-                    ]
-                })
-        melodi_response = create_experiment(
-            experiment_name,
-            experiment_instructions,
-            items=comparisons,
-            experiment_type='Bake-off',
-            project=project
-        )
-    
+            with col_jsonl_b:
+                prompt_2 = st.text_input(
+                'Model or Prompt Version Name (B)',
+                value="New Prompt",
+                disabled=st.session_state.disabled,
+                help="Names can't be updated if data is present in the table.",
+                key="GPT prompt 2")
+
+                uploaded_file_B = st.file_uploader(label='Conversation Samples (B)', type=['jsonl'], label_visibility="hidden")
+                if uploaded_file_B is not None:
+                    st.session_state['file'] = True
+                    samples_B = []
+                    for line in uploaded_file_B.read().decode('utf-8').splitlines():
+                        samples_B.append(json.loads(line))
     else:
-        binary_samples = []
-        for index, row in samples.iterrows():
-            binary_samples.append({"response": row.iloc[0]})
-        if project:
-            binary_version = prompt_1
+        uploaded_file_A = st.file_uploader(label='Conversation Samples', type=['jsonl'])
+        if uploaded_file_A is not None:
+            st.session_state['file'] = True
+            samples_A = []
+            for line in uploaded_file_A.read().decode('utf-8').splitlines():
+                samples_A.append(json.loads(line))
+            st.session_state['GPT data'] = True
+
+    if st.session_state['GPT data']:
+        try:
+            st.subheader("Conversation Data Preview",divider='rainbow')
+            if st.session_state['eval_type'] == 'Bake-off':
+                col_message_A_preview, col_message_B_preview = st.columns(2)
+                with col_message_A_preview:
+                    for message in samples_A[0]['messages']:
+                        with st.chat_message(message['role']):
+                            st.markdown(message['content'])
+                with col_message_B_preview:
+                    for message in samples_B[0]['messages']:
+                        with st.chat_message(message['role']):
+                            st.markdown(message['content'])
+            else:
+                for message in samples_A[0]['messages']:
+                        with st.chat_message(message['role']):
+                            st.markdown(message['content'])
+        except:
+            pass
+
+if st.button('Create Experiment'):
+    if st.session_state['GPT data'] == False:
+        if st.session_state['eval_type'] == 'Bake-off':
+            comparisons = []
+            promptLabel = 'promptLabel'
+            if project:
+                promptLabel = 'version'
+            else:
+                project = None
+            if num_columns == 2:
+                for index, sample in samples.iterrows(): # Loop through rows with iterrows() 
+                    comparisons.append({"samples":[
+                        {"response": sample[prompt_1], promptLabel: prompt_1}, 
+                        {"response": sample[prompt_2], promptLabel: prompt_2} 
+                    ]})
+            elif num_columns == 3:
+                for index, sample in samples.iterrows():
+                    # Create a dictionary for each sample, handling missing values by using None, which converts to null in JSON
+                    sample_1_response = sample.get(prompt_1) if pd.notnull(sample.get(prompt_1)) else None
+                    sample_2_response = sample.get(prompt_2) if pd.notnull(sample.get(prompt_2)) else None
+                    sample_message = sample[message] if pd.notnull(sample[message]) else None
+
+                    # Add the samples to the comparisons list
+                    comparisons.append({
+                        "samples": [
+                            {"response": sample_1_response, promptLabel: prompt_1, "message": sample_message},
+                            {"response": sample_2_response, promptLabel: prompt_2, "message": sample_message}
+                        ]
+                    })
+            melodi_response = create_experiment(
+                experiment_name,
+                experiment_instructions,
+                items=comparisons,
+                experiment_type='Bake-off',
+                project=project
+            )
+        
         else:
-            project = None
-            binary_version = None
-        melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version)
+            binary_samples = []
+            for index, row in samples.iterrows():
+                binary_samples.append({"response": row.iloc[0]})
+            if project:
+                binary_version = prompt_1
+            else:
+                project = None
+                binary_version = None
+            melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version)
+    
+    
+    else: ### HANDLE GPT DATA ####
+        if st.session_state['eval_type'] == 'Bake-off':
+            comparisons = []
+            promptLabel = 'promptLabel'
+            if project:
+                promptLabel = 'version'
+            else:
+                project = None
+
+            for thread_A, thread_B in zip(samples_A, samples_B): # Loop through rows with iterrows() 
+                comparisons.append({"samples":[
+                    {"response": thread_A, promptLabel: prompt_1}, 
+                    {"response": thread_B, promptLabel: prompt_2} 
+                ]})
+
+            melodi_response = create_experiment(
+                experiment_name,
+                experiment_instructions,
+                items=comparisons,
+                experiment_type='Bake-off',
+                project=project,
+                gpt_template=True
+            )
+        
+        else: ### create binary (gpt)
+            binary_samples = []
+            for thread in samples_A:
+                binary_samples.append({"response": thread})
+            if project:
+                binary_version = prompt_1
+            else:
+                project = None
+                binary_version = None
+            melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version, gpt_template=True)
+    
+
+
+
 
     if melodi_response.status_code == 200:
         res = melodi_response.json()
