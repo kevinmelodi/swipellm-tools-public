@@ -183,11 +183,25 @@ if st.button('Create Experiment'):
                 ]})
         elif num_columns == 3:
             for index, sample in samples.iterrows():
-                comparisons.append({"samples": [
-                    {"response": sample.get(prompt_1), promptLabel: prompt_1, "message": sample[message]},
-                    {"response": sample.get(prompt_2), promptLabel: prompt_2, "message": sample[message]}
-                ]})
-        melodi_response = create_experiment(experiment_name, experiment_instructions, items=comparisons, experiment_type='Bake-off', project=project)
+                # Create a dictionary for each sample, handling missing values by using None, which converts to null in JSON
+                sample_1_response = sample.get(prompt_1) if pd.notnull(sample.get(prompt_1)) else None
+                sample_2_response = sample.get(prompt_2) if pd.notnull(sample.get(prompt_2)) else None
+                sample_message = sample[message] if pd.notnull(sample[message]) else None
+
+                # Add the samples to the comparisons list
+                comparisons.append({
+                    "samples": [
+                        {"response": sample_1_response, promptLabel: prompt_1, "message": sample_message},
+                        {"response": sample_2_response, promptLabel: prompt_2, "message": sample_message}
+                    ]
+                })
+        melodi_response = create_experiment(
+            experiment_name,
+            experiment_instructions,
+            items=comparisons,
+            experiment_type='Bake-off',
+            project=project
+        )
     
     else:
         binary_samples = []
