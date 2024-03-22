@@ -184,8 +184,8 @@ if st.button('Create Experiment'):
         elif num_columns == 3:
             for index, sample in samples.iterrows():
                 comparisons.append({"samples": [
-                    {"response": sample[prompt_1], promptLabel: prompt_1, "message": sample[message]},
-                    {"response": sample[prompt_2], promptLabel: prompt_2, "message": sample[message]}
+                    {"response": sample.get(prompt_1), promptLabel: prompt_1, "message": sample[message]},
+                    {"response": sample.get(prompt_2), promptLabel: prompt_2, "message": sample[message]}
                 ]})
         melodi_response = create_experiment(experiment_name, experiment_instructions, items=comparisons, experiment_type='Bake-off', project=project)
     
