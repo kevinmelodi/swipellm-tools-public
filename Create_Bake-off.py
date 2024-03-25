@@ -10,11 +10,15 @@ st.set_page_config(page_title="Melodi | Create Evaluation", page_icon='melodi_tr
 with st.sidebar:
     melodi_api_key = st.text_input("Melodi API Key", type="password")
 
-def create_experiment(experiment_name, experiment_instructions, items, experiment_type='Bake-off', project=None, binary_version=None, gpt_template=False):
-    api_key = melodi_api_key  # Make sure to replace this with your actual API key
+def create_experiment(experiment_name, experiment_instructions, items, experiment_type='Bake-off', project=None, binary_version=None, template_type='default'):
+    api_key = melodi_api_key
     base_url = "https://app.melodi.fyi/api/external/experiments?apiKey="
-    if gpt_template == True:
+    
+    if template_type == 'conversational':
         base_url = "https://app.melodi.fyi/api/external/experiments/templates/conversational?apiKey="
+    elif template_type == 'json':
+        base_url = "https://app.melodi.fyi/api/external/experiments/templates/json?apiKey="
+    
     url = base_url + api_key
     headers = {"Content-Type": "application/json"}
 
@@ -45,6 +49,46 @@ def create_experiment(experiment_name, experiment_instructions, items, experimen
 
     return response
 
+def json_to_markdown_recursive(json_dict, level=1):
+    """
+    This function recursively converts a JSON dictionary to a markdown string.
+    It handles nested dictionaries by increasing the heading level and 
+    shows keys with no values as "_no result_".
+
+    :param json_dict: Dictionary containing the message logs
+    :param level: Current heading level
+    :return: A string formatted in markdown
+    """
+    markdown_str = ""
+    for key, value in json_dict.items():
+        # Use "No result" if the value is None or an empty list/string
+        display_value = "_no value_" if (value is None or value == [] or value == "") else value
+
+        # Handle non-boolean and non-empty values or non-dict, non-list
+        if not isinstance(display_value, (dict, list, bool)):
+            markdown_str += f"{'###' * level} {key}\n\n{display_value}\n\n"
+        # Handle list and dict types
+        elif isinstance(display_value, list):
+            markdown_str += f"{'###' * level} {key}\n\n"
+            if display_value:  # If the list is not empty
+                for item in display_value:
+                    # If the list item is a dict, call the function recursively increasing the level
+                    if isinstance(item, dict):
+                        markdown_str += json_to_markdown_recursive(item, level + 1)
+                    else:
+                        markdown_str += f"{item}\n"
+            else:
+                markdown_str += "_no value_\n"
+            markdown_str += "\n"
+        elif isinstance(display_value, dict):
+            # If it's a dict, add a heading and call the function recursively increasing the level
+            markdown_str += f"{'###' * level} {key}\n\n{json_to_markdown_recursive(display_value, level + 1)}"
+        # Handle boolean values, showing them as Yes/No
+        elif isinstance(display_value, bool):
+            yes_no = 'Yes' if display_value else 'No'
+            markdown_str += f"{'###' * level} {key}\n\n{yes_no}\n\n"
+
+    return markdown_str.strip()
 st.image('melodi_transparent.png', width=70)
 st.title("Create Melodi Evaluation")
 st.caption("Enter your Melodi API key in the sidebar to begin. Copy and paste results directly from ChatGPT or use a CSV for batch import. To learn about creating experiments via API, [read the API docs.](https://melodi.notion.site/Melodi-Experiments-API-08b6d362277d49e9aa167c75bce153a0)")
@@ -76,6 +120,12 @@ if 'disabled' not in st.session_state:
 if 'GPT data' not in st.session_state:
     st.session_state['GPT data'] = False
 
+if 'JSON data' not in st.session_state:
+    st.session_state['JSON data'] = False
+
+if 'CSV data' not in st.session_state:
+    st.session_state['CSV data'] = False
+
 col_radio, col_images = st.columns(2)
 
 
@@ -92,20 +142,19 @@ with col_images:
 
 
 st.header('Import data')
-tab2, tab3, tab1 = st.tabs([ "CSV Upload","GPT Conversation (JSONL)", "Manual Entry"])
+tab_csv, tab_GPT, tab_json, tab_manual = st.tabs([ "CSV Upload","GPT Conversation (JSONL)","JSONL", "Manual Entry"])
 
 if st.session_state['eval_type'] == 'Bake-off':
     prompt_a_label = 'Model or Prompt Version Name (A)'
 else:
     prompt_a_label = 'Model or Prompt Version Name'
 
-with tab1:
+with tab_manual:
 
     col1, col2 = st.columns(2)
 
     if 'help' not in st.session_state:
         st.session_state.help = "Reviewers won't see this"
-
 
     with col1:
         prompt_1 = st.text_input(
@@ -149,7 +198,7 @@ with tab1:
         st.session_state.help = "Prompt names can't be updated when data is present in the table."
 
 
-with tab2:
+with tab_csv:
     if st.session_state['eval_type'] == 'Bake-off':
         uploaded_file = st.file_uploader(label='For **bake-off evaluations** a header row must be provided to label the models (such as "New prompt" and "Old prompt"). Column 1 should contain responses generated from Prompt 1. Column 2 should contain resposnes generated from Prompt 2. ', type=['csv'])
         if uploaded_file is not None:
@@ -171,8 +220,9 @@ with tab2:
             samples = file.iloc[:,0:1]
             prompt_1 = file.columns[0]
             st.dataframe(samples, hide_index=True)
+            st.session_state['CSV data'] = True
 
-with tab3:
+with tab_GPT:
     st.write("Data should follow the OpenAI fine tuning dataset structure. For details, [read the OpenAI fine tune docs](https://platform.openai.com/docs/guides/fine-tuning/preparing-your-dataset)")
     if st.session_state['eval_type'] == 'Bake-off':
             col_jsonl_a, col_jsonl_b = st.columns(2)
@@ -235,8 +285,139 @@ with tab3:
         except:
             pass
 
+with tab_json:
+    st.write("JSONL files should have a valid JSON dictionary on each newline of the file.")
+    if st.session_state['eval_type'] == 'Bake-off':
+            col_jsonl_a, col_jsonl_b = st.columns(2)
+            with col_jsonl_a:
+                prompt_1 = st.text_input(
+                prompt_a_label,
+                value="Original Prompt",
+                #disabled=st.session_state.disabled,
+                help="Names can't be updated if data is present in the table.",
+                key = "JSON prompt 1")
+                
+                uploaded_file_A = st.file_uploader(label='JSON Samples (A)', type=['jsonl'], label_visibility="hidden")
+                if uploaded_file_A is not None:
+                    st.session_state['file'] = True
+                    samples_A = []
+                    for line in uploaded_file_A.read().decode('utf-8').splitlines():
+                        samples_A.append(json.loads(line))
+                    st.session_state['JSON data'] = True
+
+            with col_jsonl_b:
+                prompt_2 = st.text_input(
+                'Model or Prompt Version Name (B)',
+                value="New Prompt",
+                disabled=st.session_state.disabled,
+                help="Names can't be updated if data is present in the table.",
+                key="JSON prompt 2")
+
+                uploaded_file_B = st.file_uploader(label='JSON Samples (B)', type=['jsonl'], label_visibility="hidden")
+                if uploaded_file_B is not None:
+                    st.session_state['file'] = True
+                    samples_B = []
+                    for line in uploaded_file_B.read().decode('utf-8').splitlines():
+                        samples_B.append(json.loads(line))
+    else:
+        uploaded_file_A = st.file_uploader(label='JSON Samples', type=['jsonl'])
+        if uploaded_file_A is not None:
+            st.session_state['file'] = True
+            samples_A = []
+            for line in uploaded_file_A.read().decode('utf-8').splitlines():
+                samples_A.append(json.loads(line))
+            st.session_state['JSON data'] = True
+
+    if st.session_state['JSON data']:
+        try:
+            st.subheader("JSON Data Preview",divider='rainbow')
+            if st.session_state['eval_type'] == 'Bake-off':
+                col_json_A_preview, col_json_B_preview = st.columns(2)
+                with col_json_A_preview:
+                    expander_A = st.expander("Preview data")
+                    expander_A.markdown(json_to_markdown_recursive(samples_A[0]))
+                with col_json_B_preview:
+                    expander_B = st.expander("Preview data")
+                    expander_B.markdown(json_to_markdown_recursive(samples_B[0]))
+            else:
+                expander = st.expander("Preview data")
+                expander.markdown(json_to_markdown_recursive(samples_A[0]))
+        except:
+            pass
+
 if st.button('Create Experiment'):
-    if st.session_state['GPT data'] == False:
+
+    if st.session_state['GPT data'] == True: ### HANDLE GPT DATA ####
+        if st.session_state['eval_type'] == 'Bake-off':
+            comparisons = []
+            promptLabel = 'promptLabel'
+            if project:
+                promptLabel = 'version'
+            else:
+                project = None
+
+            for thread_A, thread_B in zip(samples_A, samples_B): # Loop through rows with iterrows() 
+                comparisons.append({"samples":[
+                    {"response": thread_A, promptLabel: prompt_1}, 
+                    {"response": thread_B, promptLabel: prompt_2} 
+                ]})
+
+            melodi_response = create_experiment(
+                experiment_name,
+                experiment_instructions,
+                items=comparisons,
+                experiment_type='Bake-off',
+                project=project,
+                template_type='conversational'
+            )
+        
+        else: ### create binary (gpt)
+            binary_samples = []
+            for thread in samples_A:
+                binary_samples.append({"response": thread})
+            if project:
+                binary_version = prompt_1
+            else:
+                project = None
+                binary_version = None
+            melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version, template_type='conversational')
+
+    elif st.session_state['JSON data'] == True:
+        if st.session_state['eval_type'] == 'Bake-off':
+            comparisons = []
+            promptLabel = 'promptLabel'
+            if project:
+                promptLabel = 'version'
+            else:
+                project = None
+
+            for thread_A, thread_B in zip(samples_A, samples_B): # Loop through rows with iterrows() 
+                comparisons.append({"samples":[
+                    {"response": thread_A, promptLabel: prompt_1}, 
+                    {"response": thread_B, promptLabel: prompt_2} 
+                ]})
+
+            melodi_response = create_experiment(
+                experiment_name,
+                experiment_instructions,
+                items=comparisons,
+                experiment_type='Bake-off',
+                project=project,
+                template_type='json'
+            )
+        
+        else: ### create binary (gpt)
+            binary_samples = []
+            for thread in samples_A:
+                binary_samples.append({"response": thread})
+            if project:
+                binary_version = prompt_1
+            else:
+                project = None
+                binary_version = None
+            melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version, template_type='json')
+
+    else:
         if st.session_state['eval_type'] == 'Bake-off':
             comparisons = []
             promptLabel = 'promptLabel'
@@ -283,46 +464,7 @@ if st.button('Create Experiment'):
                 binary_version = None
             melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version)
     
-    
-    else: ### HANDLE GPT DATA ####
-        if st.session_state['eval_type'] == 'Bake-off':
-            comparisons = []
-            promptLabel = 'promptLabel'
-            if project:
-                promptLabel = 'version'
-            else:
-                project = None
-
-            for thread_A, thread_B in zip(samples_A, samples_B): # Loop through rows with iterrows() 
-                comparisons.append({"samples":[
-                    {"response": thread_A, promptLabel: prompt_1}, 
-                    {"response": thread_B, promptLabel: prompt_2} 
-                ]})
-
-            melodi_response = create_experiment(
-                experiment_name,
-                experiment_instructions,
-                items=comparisons,
-                experiment_type='Bake-off',
-                project=project,
-                gpt_template=True
-            )
-        
-        else: ### create binary (gpt)
-            binary_samples = []
-            for thread in samples_A:
-                binary_samples.append({"response": thread})
-            if project:
-                binary_version = prompt_1
-            else:
-                project = None
-                binary_version = None
-            melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version, gpt_template=True)
-    
-
-
-
-
+    #### Display results links
     if melodi_response.status_code == 200:
         res = melodi_response.json()
         feedback_url = res.get('feedbackUrl')
