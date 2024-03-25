@@ -92,7 +92,7 @@ with col_images:
 
 
 st.header('Import data')
-tab1, tab2, tab3 = st.tabs(["Manual Entry", "CSV Upload","GPT Conversation (JSONL)"])
+tab2, tab3, tab1 = st.tabs([ "CSV Upload","GPT Conversation (JSONL)", "Manual Entry"])
 
 if st.session_state['eval_type'] == 'Bake-off':
     prompt_a_label = 'Model or Prompt Version Name (A)'
