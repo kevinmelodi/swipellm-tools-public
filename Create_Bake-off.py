@@ -215,6 +215,7 @@ with tab_csv:
                 samples = file.iloc[:, 0:3]
                 message, prompt_1, prompt_2 = samples.columns.tolist()
             st.dataframe(samples, hide_index=True)
+            st.session_state['CSV data'] = True
     else:
         uploaded_file = st.file_uploader(label="For **binary evaluations**, a header row is required, but the header value is not used to create the evaluation. The file should be one column: a list of example LLM responses from one prompt/model.", type=['csv'])
         if uploaded_file is not None:
@@ -225,12 +226,13 @@ with tab_csv:
             st.dataframe(samples, hide_index=True)
             st.session_state['CSV data'] = True
 
+
 with tab_GPT:
     st.write("Data should follow the OpenAI fine tuning dataset structure. For details, [read the OpenAI fine tune docs](https://platform.openai.com/docs/guides/fine-tuning/preparing-your-dataset)")
     if st.session_state['eval_type'] == 'Bake-off':
             col_jsonl_a, col_jsonl_b = st.columns(2)
             with col_jsonl_a:
-                prompt_1 = st.text_input(
+                prompt_1_GPT = st.text_input(
                 prompt_a_label,
                 value="Original Prompt",
                 #disabled=st.session_state.disabled,
@@ -246,7 +248,7 @@ with tab_GPT:
                     st.session_state['GPT data'] = True
 
             with col_jsonl_b:
-                prompt_2 = st.text_input(
+                prompt_2_GPT = st.text_input(
                 'Model or Prompt Version Name (B)',
                 value="New Prompt",
                 disabled=st.session_state.disabled,
@@ -293,7 +295,7 @@ with tab_json:
     if st.session_state['eval_type'] == 'Bake-off':
             col_jsonl_a, col_jsonl_b = st.columns(2)
             with col_jsonl_a:
-                prompt_1 = st.text_input(
+                prompt_1_JSON = st.text_input(
                 prompt_a_label,
                 value="Original Prompt",
                 #disabled=st.session_state.disabled,
@@ -309,7 +311,7 @@ with tab_json:
                     st.session_state['JSON data'] = True
 
             with col_jsonl_b:
-                prompt_2 = st.text_input(
+                prompt_2_JSON = st.text_input(
                 'Model or Prompt Version Name (B)',
                 value="New Prompt",
                 disabled=st.session_state.disabled,
@@ -388,29 +390,31 @@ with tab_braintrust:
     expand_bt_image = st.expander('Braintrust CSV Export Detail')
     expand_bt_image.image('images/braintrust CSV.png')
     st.write('Melodi validates and attempts to repair JSON in the LLM responses. If the responses can not be validated or fixed, Melodi will default to rendering the samples as markdown text.')
-    if st.session_state['eval_type'] == 'Bake-off':
-        samples = upload_and_process_file('Braintrust', ['output', 'expected'])
-        # Display custom JSON preview component if JSON data is present
-        if samples is not None and st.session_state.get('JSON data'):
-            st.subheader("JSON Data Preview", divider='rainbow')
-            col_json_A_preview, col_json_B_preview = st.columns(2)
-            with col_json_A_preview:
-                expander_A = st.expander("Preview data")
-                expander_A.markdown(json_to_markdown_recursive(json.loads(samples['output'].iloc[0])))
-            with col_json_B_preview:
-                expander_B = st.expander("Preview data")
-                expander_B.markdown(json_to_markdown_recursive(json.loads(samples['expected'].iloc[0])))
-        elif samples is not None and st.session_state.get('JSON data')==False:
-            st.dataframe(samples, hide_index=True)
+    if st.session_state['CSV data'] == False:
+        if st.session_state['eval_type'] == 'Bake-off':
+            samples = upload_and_process_file('Braintrust', ['output', 'expected'])
+            # Display custom JSON preview component if JSON data is present
+            if samples is not None and st.session_state.get('JSON data'):
+                st.subheader("JSON Data Preview", divider='rainbow')
+                col_json_A_preview, col_json_B_preview = st.columns(2)
+                with col_json_A_preview:
+                    expander_A = st.expander("Preview data")
+                    expander_A.markdown(json_to_markdown_recursive(json.loads(samples['output'].iloc[0])))
+                with col_json_B_preview:
+                    expander_B = st.expander("Preview data")
+                    expander_B.markdown(json_to_markdown_recursive(json.loads(samples['expected'].iloc[0])))
+            elif samples is not None and st.session_state.get('JSON data')==False:
+                st.dataframe(samples, hide_index=True)
+        else:
+            samples = upload_and_process_file('braintrust binary', ['output'])
+            # Display custom JSON preview component for binary evaluation type
+            if samples is not None and st.session_state.get('JSON data'):
+                expander = st.expander("Preview data")
+                expander.markdown(json_to_markdown_recursive(json.loads(samples['output'].iloc[0])))
+            elif samples is not None and st.session_state.get('JSON data')==False:
+                st.dataframe(samples, hide_index=True)
     else:
-        samples = upload_and_process_file('braintrust binary', ['output'])
-        # Display custom JSON preview component for binary evaluation type
-        if samples is not None and st.session_state.get('JSON data'):
-            expander = st.expander("Preview data")
-            expander.markdown(json_to_markdown_recursive(json.loads(samples['output'].iloc[0])))
-        elif samples is not None and st.session_state.get('JSON data')==False:
-            st.dataframe(samples, hide_index=True)
-
+        pass
 
 if st.button('Create Experiment'):
 
@@ -425,8 +429,8 @@ if st.button('Create Experiment'):
 
             for thread_A, thread_B in zip(samples_A, samples_B): # Loop through rows with iterrows() 
                 comparisons.append({"samples":[
-                    {"response": thread_A, promptLabel: prompt_1}, 
-                    {"response": thread_B, promptLabel: prompt_2} 
+                    {"response": thread_A, promptLabel: prompt_1_GPT}, 
+                    {"response": thread_B, promptLabel: prompt_2_GPT} 
                 ]})
 
             melodi_response = create_experiment(
@@ -443,7 +447,7 @@ if st.button('Create Experiment'):
             for thread in samples_A:
                 binary_samples.append({"response": thread})
             if project:
-                binary_version = prompt_1
+                binary_version = prompt_1_GPT
             else:
                 project = None
                 binary_version = None
@@ -465,8 +469,8 @@ if st.button('Create Experiment'):
 
             for thread_A, thread_B in zip(samples_A, samples_B): # Loop through rows with iterrows() 
                 comparisons.append({"samples":[
-                    {"response": thread_A, promptLabel: prompt_1}, 
-                    {"response": thread_B, promptLabel: prompt_2} 
+                    {"response": thread_A, promptLabel: prompt_1_JSON}, 
+                    {"response": thread_B, promptLabel: prompt_2_JSON} 
                 ]})
 
             melodi_response = create_experiment(
@@ -483,14 +487,14 @@ if st.button('Create Experiment'):
             for thread in samples_A:
                 binary_samples.append({"response": thread})
             if project:
-                binary_version = prompt_1
+                binary_version = prompt_1_JSON
             else:
                 project = None
                 binary_version = None
             melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version, template_type='json')
 
    
-    else:
+    else: ## CSV data
         if st.session_state['eval_type'] == 'Bake-off':
             comparisons = []
             promptLabel = 'promptLabel'
@@ -509,10 +513,11 @@ if st.button('Create Experiment'):
                         {"response": sample[prompt_2], promptLabel: prompt_2} 
                     ]})
             elif num_columns == 3:
+
                 for index, sample in samples.iterrows():
                     # Create a dictionary for each sample, handling missing values by using None, which converts to null in JSON
-                    sample_1_response = sample.get(prompt_1) if pd.notnull(sample.get(prompt_1)) else None
-                    sample_2_response = sample.get(prompt_2) if pd.notnull(sample.get(prompt_2)) else None
+                    sample_1_response = sample.get(prompt_1)
+                    sample_2_response = sample.get(prompt_2)
                     sample_message = sample[message] if pd.notnull(sample[message]) else None
 
                     # Add the samples to the comparisons list
@@ -522,6 +527,8 @@ if st.button('Create Experiment'):
                             {"response": sample_2_response, promptLabel: prompt_2, "message": sample_message}
                         ]
                     })
+
+
             melodi_response = create_experiment(
                 experiment_name,
                 experiment_instructions,
@@ -556,6 +563,7 @@ if st.button('Create Experiment'):
 
 
     else:
+        
         response_content = json.loads(melodi_response.content)
         try:
             st.write(f"Failed to create experiment: {response_content['error']}")
