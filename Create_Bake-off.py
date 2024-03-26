@@ -126,6 +126,9 @@ if 'JSON data' not in st.session_state:
 if 'CSV data' not in st.session_state:
     st.session_state['CSV data'] = False
 
+if 'Braintrust data' not in st.session_state:
+    st.session_state['Braintrust data'] = False
+
 col_radio, col_images = st.columns(2)
 
 
@@ -142,7 +145,7 @@ with col_images:
 
 
 st.header('Import data')
-tab_csv, tab_GPT, tab_json, tab_manual = st.tabs([ "CSV","GPT Thread (Fine Tune)","JSONL", "Manual Entry"])
+tab_csv, tab_GPT, tab_json, tab_braintrust, tab_manual = st.tabs([ "CSV","GPT Thread (Fine Tune)","JSONL", "Braintrust CSV", "Manual Entry"])
 
 if st.session_state['eval_type'] == 'Bake-off':
     prompt_a_label = 'Model or Prompt Version Name (A)'
@@ -345,6 +348,70 @@ with tab_json:
         except:
             pass
 
+
+def is_valid_json(json_string):
+    try:
+        return True, json.loads(json_string)  # Return True and the parsed JSON if it's valid
+    except json.JSONDecodeError:
+        # Attempt to clean the string and check again
+        if json_string.startswith('"') and json_string.endswith('"'):
+            json_string = json_string[1:-1]
+        json_string = json_string.replace(r'\"', '"').replace('\\n', ' ').replace('\\r', ' ')
+        try:
+            return True, json.loads(json_string)  # Return True and the parsed JSON if it's now valid
+        except json.JSONDecodeError:
+            return False, json_string  # Return False and the original string if it's still not valid
+
+def upload_and_process_file(label, columns_to_display):
+    samples = None
+    has_valid_json = False  # Initialize flag to track JSON validity
+    uploaded_file = st.file_uploader(label=label, type=['csv'], label_visibility='hidden')
+    if uploaded_file is not None:
+        st.session_state['file'] = True
+        file = pd.read_csv(uploaded_file, header=0)
+        if all(col in file.columns for col in columns_to_display):
+            samples = file[columns_to_display]
+            # Process each cell, check if it's valid JSON and clean if necessary
+            for col in columns_to_display:
+                samples[col] = samples[col].apply(lambda x: is_valid_json(x)[1] if isinstance(x, str) else x)
+                # Check if any cell in the column contains valid JSON
+                has_valid_json = has_valid_json or samples[col].apply(lambda x: is_valid_json(x)[0] if isinstance(x, str) else False).any()
+            # Update the 'JSON data' session state based on the presence of valid JSON
+            st.session_state['JSON data'] = has_valid_json
+            st.session_state['Braintrust data'] = True
+        else:
+            st.error(f"Missing expected columns: {columns_to_display}")
+    return samples
+
+with tab_braintrust:
+    st.write('This option expects a CSV export of a [Braintrust Data Evaluation](https://www.braintrustdata.com/docs/guides/evals). Only the LLM responses are will be stored in Melodi for review - **inputs are never stored**. No data is stored or retained by Streamlit, and only LLM responses will be sent to Melodi. For more information on Streamlit data handling, [see here](https://docs.streamlit.io/knowledge-base/using-streamlit/where-file-uploader-store-when-deleted).' )
+    expand_bt_image = st.expander('Braintrust CSV Export Detail')
+    expand_bt_image.image('images/braintrust CSV.png')
+    st.write('Melodi validates and attempts to repair JSON in the LLM responses. If the responses can not be validated or fixed, Melodi will default to rendering the samples as markdown text.')
+    if st.session_state['eval_type'] == 'Bake-off':
+        samples = upload_and_process_file('Braintrust', ['output', 'expected'])
+        # Display custom JSON preview component if JSON data is present
+        if samples is not None and st.session_state.get('JSON data'):
+            st.subheader("JSON Data Preview", divider='rainbow')
+            col_json_A_preview, col_json_B_preview = st.columns(2)
+            with col_json_A_preview:
+                expander_A = st.expander("Preview data")
+                expander_A.markdown(json_to_markdown_recursive(json.loads(samples['output'].iloc[0])))
+            with col_json_B_preview:
+                expander_B = st.expander("Preview data")
+                expander_B.markdown(json_to_markdown_recursive(json.loads(samples['expected'].iloc[0])))
+        elif samples is not None and st.session_state.get('JSON data')==False:
+            st.dataframe(samples, hide_index=True)
+    else:
+        samples = upload_and_process_file('braintrust binary', ['output'])
+        # Display custom JSON preview component for binary evaluation type
+        if samples is not None and st.session_state.get('JSON data'):
+            expander = st.expander("Preview data")
+            expander.markdown(json_to_markdown_recursive(json.loads(samples['output'].iloc[0])))
+        elif samples is not None and st.session_state.get('JSON data')==False:
+            st.dataframe(samples, hide_index=True)
+
+
 if st.button('Create Experiment'):
 
     if st.session_state['GPT data'] == True: ### HANDLE GPT DATA ####
@@ -383,6 +450,10 @@ if st.button('Create Experiment'):
             melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version, template_type='conversational')
 
     elif st.session_state['JSON data'] == True:
+        if st.session_state['Braintrust data']:
+            samples_A = [json.loads(line) for line in samples.get('output')]
+            if 'expected' in samples.columns:
+                samples_B = [json.loads(line) for line in samples.get('expected')]
         if st.session_state['eval_type'] == 'Bake-off':
             comparisons = []
             promptLabel = 'promptLabel'
@@ -390,6 +461,7 @@ if st.button('Create Experiment'):
                 promptLabel = 'version'
             else:
                 project = None
+
 
             for thread_A, thread_B in zip(samples_A, samples_B): # Loop through rows with iterrows() 
                 comparisons.append({"samples":[
@@ -406,7 +478,7 @@ if st.button('Create Experiment'):
                 template_type='json'
             )
         
-        else: ### create binary (gpt)
+        else:
             binary_samples = []
             for thread in samples_A:
                 binary_samples.append({"response": thread})
@@ -417,6 +489,7 @@ if st.button('Create Experiment'):
                 binary_version = None
             melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version, template_type='json')
 
+   
     else:
         if st.session_state['eval_type'] == 'Bake-off':
             comparisons = []
@@ -425,6 +498,10 @@ if st.button('Create Experiment'):
                 promptLabel = 'version'
             else:
                 project = None
+            if st.session_state['Braintrust data']:
+                num_columns = 2
+                prompt_1 = 'output'
+                prompt_2 = 'expected'
             if num_columns == 2:
                 for index, sample in samples.iterrows(): # Loop through rows with iterrows() 
                     comparisons.append({"samples":[
@@ -452,7 +529,7 @@ if st.button('Create Experiment'):
                 experiment_type='Bake-off',
                 project=project
             )
-        
+
         else:
             binary_samples = []
             for index, row in samples.iterrows():
@@ -463,7 +540,7 @@ if st.button('Create Experiment'):
                 project = None
                 binary_version = None
             melodi_response = create_experiment(experiment_name, experiment_instructions, experiment_type='Binary', items=binary_samples, project=project, binary_version=binary_version)
-    
+
     #### Display results links
     if melodi_response.status_code == 200:
         res = melodi_response.json()
@@ -484,4 +561,3 @@ if st.button('Create Experiment'):
             st.write(f"Failed to create experiment: {response_content['error']}")
         except:
             st.write(f"Failed to create experiment: {response_content}")
-
