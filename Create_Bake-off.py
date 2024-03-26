@@ -309,6 +309,8 @@ with tab_GPT:
             st.session_state['GPT data'] = True
 
     if st.session_state['GPT data']:
+        if project and uploaded_file_A.name:
+            prompt_1_GPT = st.text_input('Model Version (required if adding to a Project)', uploaded_file_A.name)
         try:
             st.subheader("Conversation Data Preview",divider='rainbow')
             if st.session_state['eval_type'] == 'Bake-off':
