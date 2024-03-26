@@ -201,6 +201,25 @@ with tab_manual:
         st.session_state.help = "Prompt names can't be updated when data is present in the table."
 
 
+def create_comparisons_corrected(df):
+    def transform_to_json_dicts_assuming_structure(df):
+        json_dicts_standard = []
+        json_dicts_handwritten = []
+        for index, row in df.iterrows():
+            user_message = {'role': 'user', 'content': row[df.columns[0]]}
+            standard_response = {'role': 'assistant', 'content': row[df.columns[1]]}
+            handwritten_response = {'role': 'assistant', 'content': row[df.columns[2]]}
+            json_dicts_standard.append([user_message, standard_response])
+            json_dicts_handwritten.append([user_message, handwritten_response])
+        return json_dicts_standard, json_dicts_handwritten
+
+    json_dicts_standard, json_dicts_handwritten = transform_to_json_dicts_assuming_structure(df)
+    comparisons = []
+    for standard, handwritten in zip(json_dicts_standard, json_dicts_handwritten):
+        comparisons.append({'samples': [standard, handwritten]})
+    return comparisons
+
+
 with tab_csv:
     if st.session_state['eval_type'] == 'Bake-off':
         uploaded_file = st.file_uploader(label='For **bake-off evaluations** a header row must be provided to label the models (such as "New prompt" and "Old prompt"). Column 1 should contain responses generated from Prompt 1. Column 2 should contain resposnes generated from Prompt 2. ', type=['csv'])
@@ -211,10 +230,29 @@ with tab_csv:
             if num_columns == 2:
                 samples = file.iloc[:,0:2]
                 prompt_1, prompt_2 = samples.columns.tolist()
+                st.dataframe(samples, hide_index=True)
             elif num_columns == 3:
                 samples = file.iloc[:, 0:3]
                 message, prompt_1, prompt_2 = samples.columns.tolist()
-            st.dataframe(samples, hide_index=True)
+                try:
+                    st.subheader("Conversation Data Preview",divider='rainbow')
+                    if st.session_state['eval_type'] == 'Bake-off':
+                        comparisons_csv_3col = create_comparisons_corrected(file)
+                        col_message_A_preview, col_message_B_preview = st.columns(2)
+                        with col_message_A_preview:
+                            for message in comparisons_csv_3col[0]['samples'][0]:
+                                with st.chat_message(message['role']):
+                                    st.markdown(message['content'])
+                        with col_message_B_preview:
+                            for message in comparisons_csv_3col[0]['samples'][1]:
+                                with st.chat_message(message['role']):
+                                    st.markdown(message['content'])
+                    else:
+                        st.write('promple')
+
+                except:
+                    pass
+
             st.session_state['CSV data'] = True
     else:
         uploaded_file = st.file_uploader(label="For **binary evaluations**, a header row is required, but the header value is not used to create the evaluation. The file should be one column: a list of example LLM responses from one prompt/model.", type=['csv'])
@@ -441,7 +479,7 @@ if st.button('Create Experiment'):
                 project=project,
                 template_type='conversational'
             )
-        
+
         else: ### create binary (gpt)
             binary_samples = []
             for thread in samples_A:
@@ -496,6 +534,7 @@ if st.button('Create Experiment'):
    
     else: ## CSV data
         if st.session_state['eval_type'] == 'Bake-off':
+            template_type='default'
             comparisons = []
             promptLabel = 'promptLabel'
             if project:
@@ -512,30 +551,37 @@ if st.button('Create Experiment'):
                         {"response": sample[prompt_1], promptLabel: prompt_1}, 
                         {"response": sample[prompt_2], promptLabel: prompt_2} 
                     ]})
-            elif num_columns == 3:
-
-                for index, sample in samples.iterrows():
-                    # Create a dictionary for each sample, handling missing values by using None, which converts to null in JSON
-                    sample_1_response = sample.get(prompt_1)
-                    sample_2_response = sample.get(prompt_2)
-                    sample_message = sample[message] if pd.notnull(sample[message]) else None
-
-                    # Add the samples to the comparisons list
-                    comparisons.append({
-                        "samples": [
-                            {"response": sample_1_response, promptLabel: prompt_1, "message": sample_message},
-                            {"response": sample_2_response, promptLabel: prompt_2, "message": sample_message}
-                        ]
-                    })
-
-
-            melodi_response = create_experiment(
+                melodi_response = create_experiment(
                 experiment_name,
                 experiment_instructions,
                 items=comparisons,
                 experiment_type='Bake-off',
-                project=project
+                project=project,
+                template_type=template_type
             )
+            elif num_columns == 3:
+                template_type = 'conversational'
+                comparisons = []
+                promptLabel = 'promptLabel'
+                if project:
+                    promptLabel = 'version'
+                else:
+                    project = None
+                for item in comparisons_csv_3col: # Loop through rows with iterrows() 
+                    comparisons.append({"samples":[
+                        {"response": {"messages": item['samples'][0]}, promptLabel: prompt_1_GPT}, 
+                        {"response": {"messages": item['samples'][1]}, promptLabel: prompt_2_GPT} 
+                    ]})
+                
+                melodi_response = create_experiment(
+                    experiment_name,
+                    experiment_instructions,
+                    items=comparisons,
+                    experiment_type='Bake-off',
+                    project=project,
+                    template_type='conversational'
+                )
+
 
         else:
             binary_samples = []
